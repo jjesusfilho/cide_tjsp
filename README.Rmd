@@ -1,0 +1,74 @@
+---
+title: Tutorial para baixar processos de primeira instância do Tribunal de 
+    Justiça de São Paulo usando R.
+output: github_document
+---
+
+## Introdução
+
+Este tutorial mostra como criar uma sequência de números de processos judiciais de primeira instância de São Paulo e em seguida iniciar o download das informações processuais. 
+
+Para tanto, é necessário instalar e carregar alguns pacotes to CRAN e outros que estão somente no Github.
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  comments=FALSE,
+  warnings=FALSE
+)
+```
+
+
+# Pacotes necessários
+
+```{r,eval=FALSE}
+install.packages("devtools")
+devtools::install_github("courtsbr/JurisMiner")
+devtools::install_github("courtsbr/esaj")
+devtools::install_github("jjesusfilho/tjsp")
+```
+
+
+```{r}
+library(JurisMiner)
+library(tjsp)
+library(fs)
+library(esaj)
+library(knitr)
+```
+
+```
+
+
+## Sequência
+
+A função `cnj_sequencia` cria uma sequência de números. Devemos indicar o número inicial, o número final, o ano, o nível, no caso será sempre 8 para indicar que é estadual, o número da UF, para indicar que é o Estado de São Paulo e número do distribuidor. Você pode acessar essas informações nesses links: [Resolução 65/2008 CNJ](http://www.cnj.jus.br/images/stories/docs_cnj/resolucao/rescnj_65.pdf) e [Códigos das unidades judiciárias](http://www.cnj.jus.br/images/programas/numeracao-unica/tribunais-estaduais/foros-1.xls)
+
+Abaixo criamos uma sequência dos 100 possíveis primeiros números recebidos pelos processos distribuídos. Muitos números, na verdade, não estão vinculados a processos algum por erro, porque foram destinados a outro procedimento ou porque são cartas precatórias.
+
+```{r}
+sequencia<-cnj_sequencial(inicio=1,fim=100,ano=2016,nivel=8,uf=26,distribuidor=0050)
+
+diretorio<-dir_create("data-raw/cpopg")
+head(sequencia)
+```
+
+# Baixandos as informações
+
+O procedimentos abaixo baixa os htmls com as informações processuais. Em seguida, verificamos o tamanho de cada arquivo. Se for em torno de 85K, significa que a página está vazia.
+
+```{r,eval=FALSE,echo=TRUE}
+download_cpopg(sequencia,diretorio) 
+
+kable(informacoes)
+```
+
+
+```{r}
+informacoes<-file_info(dir_ls(diretorio))
+
+head(knitr::kable(informacoes[c(1,3)]),20)
+```
+
+
