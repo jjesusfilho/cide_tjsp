@@ -14,8 +14,8 @@ Para tanto, é necessário instalar e carregar alguns pacotes to CRAN e outros q
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  comments=FALSE,
-  warnings=FALSE
+  message=FALSE,
+  warning=FALSE
 )
 ```
 
@@ -31,6 +31,7 @@ devtools::install_github("jjesusfilho/tjsp")
 
 
 ```{r}
+library(tidyverse)
 library(JurisMiner)
 library(tjsp)
 library(fs)
@@ -45,7 +46,7 @@ library(knitr)
 
 A função `cnj_sequencia` cria uma sequência de números. Devemos indicar o número inicial, o número final, o ano, o nível, no caso será sempre 8 para indicar que é estadual, o número da UF, para indicar que é o Estado de São Paulo e número do distribuidor. Você pode acessar essas informações nesses links: [Resolução 65/2008 CNJ](http://www.cnj.jus.br/images/stories/docs_cnj/resolucao/rescnj_65.pdf) e [Códigos das unidades judiciárias](http://www.cnj.jus.br/images/programas/numeracao-unica/tribunais-estaduais/foros-1.xls)
 
-Abaixo criamos uma sequência dos 100 possíveis primeiros números recebidos pelos processos distribuídos. Muitos números, na verdade, não estão vinculados a processos algum por erro, porque foram destinados a outro procedimento ou porque são cartas precatórias.
+Abaixo criamos uma sequência dos 101 possíveis primeiros números recebidos pelos processos distribuídos. Muitos números, na verdade, não estão vinculados a processos algum por erro, porque foram destinados a outro procedimento ou porque são cartas precatórias.
 
 ```{r}
 sequencia<-cnj_sequencial(inicio=1,fim=100,ano=2016,nivel=8,uf=26,distribuidor=0050)
@@ -56,7 +57,7 @@ head(sequencia)
 
 # Baixandos as informações
 
-O procedimentos abaixo baixa os htmls com as informações processuais. Em seguida, verificamos o tamanho de cada arquivo. Se for em torno de 85K, significa que a página está vazia.
+O procedimentos abaixo baixa os htmls com as informações processuais. Em seguida, verificamos o tamanho de cada arquivo. Se o tamanho for em torno de 85K, significa que a página está vazia. 
 
 ```{r,eval=FALSE,echo=TRUE}
 download_cpopg(sequencia,diretorio) 
@@ -64,11 +65,59 @@ download_cpopg(sequencia,diretorio)
 kable(informacoes)
 ```
 
+Abaixo as primeiras 10 linhas dos 101 supostos processos baixados. Como se pode verificar, há muitos números que não correspondem a nenhum processo.
 
 ```{r}
 informacoes<-file_info(dir_ls(diretorio))
 
-head(knitr::kable(informacoes[c(1,3)]),20)
+knitr::kable(head(informacoes[c(1,3)],10))
 ```
+
+Inicialmente, excluímos as páginas vazias. O procedimento abaixo exclui essas páginas. 
+
+```{r,eval=FALSE}
+remover<-informacoes %>% 
+         filter(size <= as_fs_bytes("86K")) %>% 
+         pull("path")
+
+file_delete(remover)
+```
+
+Como se pode verificar, dos 101 htmls baixados, 56 foram aproveitados. Mostraremos somente as primeiras 10 linhas.
+
+```{r}
+informacoes<-file_info(dir_ls(diretorio))
+
+glimpse(informacoes[1:10,c(1,3)])
+```
+
+
+## Extração dos dados.
+
+Para visualizar um os htmls, você pode usar a seguinte função:  `rstudioapi::viewer(informacoes$path[1])`. As funções abaixo extraem as informações procesuais de cada html.
+
+
+```{r}
+ler_dados_cpopg(diretorio) %>% 
+spread(variavel,valor) %>% 
+kable()
+```
+
+Abaixo, podemos visualizar as partes. Igualmente, mostraremos somente as primeiras 10 linhas.
+
+```{r}
+ler_partes(diretorio) %>% 
+.[1:10,] %>% 
+kable()
+```
+
+Por fim, podemos visualizar o andamento processual. Como o número de linhas é muito grande, iremos imprimir somente as 20 primeiras linhas do primeiro processo.
+
+```{r}
+ler_movimentacao_cposg(diretorio) %>% 
+.[1:20,2:3] %>% 
+kable()
+```
+
 
 
